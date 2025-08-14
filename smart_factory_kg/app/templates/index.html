@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>智能工厂知识图谱</title>
+    <script src="/static/echarts.min.js"></script>
+</head>
+<body>
+    <h2>智能工厂知识图谱展示</h2>
+    <div id="main" style="width:1000px;height:600px;"></div>
+
+    <script>
+    const chartDom = document.getElementById('main');
+    const myChart = echarts.init(chartDom);
+
+    fetch('/graph_data')
+        .then(res => res.json())
+        .then(data => {
+            const option = {
+                tooltip: {},
+                series: [{
+                    type: 'graph',
+                    layout: 'force',
+                    roam: true,
+                    data: data.nodes.map(n => ({
+                        name: n.name,
+                        id: n.id,
+                        symbolSize: 60
+                    })),
+                    links: data.links.map(l => ({
+                        source: l.source,
+                        target: l.target,
+                        label: { show: true, formatter: l.label }
+                    })),
+                    label: {
+                        show: true,
+                        position: 'inside'
+                    },
+                    force: {
+                        repulsion: 200
+                    }
+                }]
+            };
+            myChart.setOption(option);
+        });
+    </script>
+</body>
+</html>

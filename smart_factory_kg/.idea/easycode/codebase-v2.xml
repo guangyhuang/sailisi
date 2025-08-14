@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="com.obiscr.chatgpt.settings.EasyCodeState">
+    <option name="projectFiles" value="$PROJECT_DIR$/app/templates/index.html;D:/code/smart_factory_kg/app/app.py;D:/code/smart_factory_kg/data/load_data.py;D:/code/smart_factory_kg/neo4j_connection.py;D:/code/smart_factory_kg/query_examples.py;D:/code/smart_factory_kg/README.md" />
+  </component>
+</project>
