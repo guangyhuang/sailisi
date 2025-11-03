@@ -35,6 +35,7 @@ def docx_to_documents(docx_path: str, chunk_size: int = 3000):
     docx = DocxDocument(docx_path)
     documents = []
     buffer = ""
+    filename = os.path.basename(docx_path)
 
     for para in docx.paragraphs:
         text = para.text.strip().replace(" ", "")
@@ -42,18 +43,17 @@ def docx_to_documents(docx_path: str, chunk_size: int = 3000):
             buffer += text
             while len(buffer) >= chunk_size:
                 chunk = buffer[:chunk_size]
-                documents.append(Document(page_content=chunk))
+                documents.append(Document(page_content=chunk, metadata={"filename": filename}))
                 buffer = buffer[chunk_size:]
 
-    # 添加剩余不足chunk_size的部分
     if buffer:
-        documents.append(Document(page_content=buffer))
+        documents.append(Document(page_content=buffer, metadata={"filename": filename}))
 
     return documents
 
 
 def doc_initialization(docs):
-    chunk_size = 25
+    chunk_size = 30
     chunk_overlap = 10
 
     EMBEDDING_DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
@@ -76,7 +76,7 @@ def doc_initialization(docs):
         vectorstore=vectordb,
         docstore=store,
         child_splitter=text_splitter,
-        search_kwargs={"k": 3},
+        search_kwargs={"k": 4},
         search_type="similarity",
     )
 
@@ -87,7 +87,10 @@ def doc_initialization(docs):
         for split in splits:
             split_doc = Document(
                 page_content=split,
-                metadata={"full_doc": doc.page_content}  # 存储原文
+                metadata={
+                    "full_doc": doc.page_content,
+                    "filename": doc.metadata.get("filename", "unknown")
+                }
             )
             split_docs.append(split_doc)
 
@@ -101,36 +104,32 @@ def doc_initialization(docs):
     return retriever
 
 
-def extract_context_snippet(child_doc: Document, context_chars: int = 200): #设置返回的上下文各150字
-    """
-    从 child_doc 的 metadata['full_doc'] 中提取其上下文字符片段
-    """
+def extract_context_snippet(child_doc: Document, context_chars: int = 200):
     full_text = child_doc.metadata.get("full_doc", "")
+    filename = child_doc.metadata.get("filename", "unknown")
     if not full_text:
         return Document(
-            page_content = child_doc.page_content,
-            metadata={}
-        )   # 找不到就返回原内容
+            page_content=child_doc.page_content,
+            metadata={"filename": filename}
+        )
 
-
-    # 定位 child_doc.page_content 在 full_text 中的位置
     start_idx = full_text.find(child_doc.page_content)
     if start_idx == -1:
         return Document(
-            page_content = child_doc.page_content,
-            metadata={}
-        )  # 找不到就返回原内容
+            page_content=child_doc.page_content,
+            metadata={"filename": filename}
+        )
 
     end_idx = start_idx + len(child_doc.page_content)
-
     context_start = max(0, start_idx - context_chars)
     context_end = min(len(full_text), end_idx + context_chars)
 
     snippet = full_text[context_start:context_end]
     return Document(
-        page_content = snippet,
-        metadata={}
+        page_content=snippet,
+        metadata={"filename": filename}
     )
+
 
 import time
 
@@ -158,4 +157,9 @@ if __name__ == '__main__':
 
         print("\n===== 检索结果（含上下300字上下文） =====\n")
         formatted_results = [extract_context_snippet(doc) for doc in results]
-        print(formatted_results)
+
+        print("formatted_results:", formatted_results)
+
+        for i, doc in enumerate(formatted_results, 1):
+            print(f"\n--- 结果 {i} | 文件: {doc.metadata.get('filename', 'unknown')} ---\n")
+            print(doc.page_content)
